@@ -1,0 +1,27 @@
+@startuml Router Reboot Architecture
+
+node "Kubernetes Cluster" {
+  package "CronJob" {
+    [Router Reboot Pod] as pod #LightBlue
+    note right of pod
+      Runs daily at specified time
+      Contains:
+      - Python script
+      - Selenium WebDriver
+      - Chrome headless
+    end note
+  }
+}
+
+node "Home Network" {
+  [Home Router] as router #Pink
+  note right of router
+    Web Admin Interface:
+    - Login page
+    - Reboot function
+  end note
+}
+
+pod -right-> router : HTTP/HTTPS\nSelenium automated\nreboot sequence
+
+@enduml

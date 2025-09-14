@@ -1,0 +1,29 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: router-reboot
+  namespace: tools
+spec:
+  schedule: "0 3 * * *"  # Runs every day at 3 AM
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+          - name: router-reboot
+            image: ghcr.io/CHANGE_ME/fluffy-fortnight/reboot-router:latest
+            env:
+            - name: ROUTER_URL
+              value: https://192.168.0.1
+            - name: ROUTER_USERNAME
+              value: admin
+            - name: ROUTER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: router-reboot-secret
+                  key: ROUTER_PASSWORD
+          imagePullSecrets:
+          - name: regcred
+          restartPolicy: OnFailure
