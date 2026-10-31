@@ -64,6 +64,11 @@ Resource limits (set in `docker-compose.yaml`):
 ### Kubernetes (legacy)
 
 See `router-reboot-cronjob.yaml` and `router-reboot-secret.yaml` (CronJob, daily 03:00, namespace `tools`).
+The image CMD is `sleep infinity`, so the CronJob container must set:
+
+```yaml
+command: ["python", "/app/main.py"]
+```
 
 ## Contributing
 
