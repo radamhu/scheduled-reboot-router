@@ -22,6 +22,9 @@ DUMP_MAX_ELEMENTS = 80
 # Absolute XPaths carried over from the Selenium version: the router UI has no stable ids.
 CONFIRM_1_XPATH = "xpath=/html/body/section/section/div/div[1]/div/section/article/div/div/section[2]/div/table[1]/div/div/p/tbody/tr/th/div/button"
 CONFIRM_2_XPATH = "xpath=/html/body/section/section/div/div[1]/div/section/article/div/div/section[2]/section/div/div/div[2]/div[2]/button[1]"
+# Nearest ancestor text of a button (e.g. "Reboot yes" vs "Factory reset yes").
+CONTEXT_JS = """el => { let e = el; for (let i = 0; i < 8 && e; i++) { e = e.parentElement;
+  if (e && e.innerText && e.innerText.trim().length > 3) return e.innerText.trim().replace(/\\s+/g, ' ').slice(0, 120); } return ''; }"""
 REBOOT_BUTTON = ':is(button, [role=button], input[type=button]):has-text("Reboot")'
 
 LIST_ELEMENTS_JS = """
@@ -206,13 +209,36 @@ def open_admin_page(page, cfg):
             log.debug("networkidle not reached, continuing")
 
 
-def click_through_reboot(page):
+def open_reboot_tab(page):
     with step("click Reboot"):
         page.locator(REBOOT_BUTTON).first.click()
+
+
+def check_confirm_selectors(page):
+    """DRY_RUN only: report whether the confirm buttons are present, without clicking them."""
+    for name, selector in (("confirm 1", CONFIRM_1_XPATH), ("confirm 2", CONFIRM_2_XPATH)):
+        loc = page.locator(selector)
+        found = loc.count()
+        log.info("selector %s: matches=%d visible=%s context=%r", name, found,
+                 loc.first.is_visible() if found else False, loc.first.evaluate(CONTEXT_JS) if found else None)
+
+
+def guarded_click(locator, must_contain=None):
+    """Click only if the button's surrounding text is not the factory-reset control (it sits next to Reboot)."""
+    context = locator.evaluate(CONTEXT_JS)
+    log.info("button context: %r", context)
+    if "factory" in context.lower():
+        raise RuntimeError(f"refusing to click: button context mentions factory reset ({context!r})")
+    if must_contain and must_contain not in context.lower():
+        raise RuntimeError(f"refusing to click: expected {must_contain!r} in button context ({context!r})")
+    locator.click()
+
+
+def click_through_reboot(page):
     with step("confirm 1"):
-        page.locator(CONFIRM_1_XPATH).click()
+        guarded_click(page.locator(CONFIRM_1_XPATH), must_contain="reboot")
     with step("confirm 2"):
-        page.locator(CONFIRM_2_XPATH).click()
+        guarded_click(page.locator(CONFIRM_2_XPATH))
 
 
 def _run(browser, cfg):
@@ -223,9 +249,12 @@ def _run(browser, cfg):
     try:
         login(page, cfg)
         open_admin_page(page, cfg)
+        open_reboot_tab(page)
         if cfg.dry_run:
-            log.info("DRY_RUN set: skipping reboot clicks")
+            log.info("DRY_RUN set: not clicking confirm buttons")
+            time.sleep(1)  # let the tab content render
             dump_page(page, "dry-run")
+            check_confirm_selectors(page)
             return
         click_through_reboot(page)
     except Exception:

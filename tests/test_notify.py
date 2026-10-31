@@ -61,6 +61,28 @@ class RebootTests(unittest.TestCase):
             self.assertIn("launch browser", json.loads(uo.call_args[0][0].data)["content"])
 
 
+class GuardTests(unittest.TestCase):
+    def test_refuses_factory_reset_context(self):
+        loc = MagicMock()
+        loc.evaluate.return_value = "Factory reset yes"
+        with self.assertRaises(RuntimeError):
+            main.guarded_click(loc, must_contain="reboot")
+        loc.click.assert_not_called()
+
+    def test_refuses_when_expected_text_missing(self):
+        loc = MagicMock()
+        loc.evaluate.return_value = "Something else yes"
+        with self.assertRaises(RuntimeError):
+            main.guarded_click(loc, must_contain="reboot")
+        loc.click.assert_not_called()
+
+    def test_clicks_reboot_context(self):
+        loc = MagicMock()
+        loc.evaluate.return_value = "Reboot yes"
+        main.guarded_click(loc, must_contain="reboot")
+        loc.click.assert_called_once()
+
+
 class StepTests(unittest.TestCase):
     def test_step_tags_exception_with_first_step_name(self):
         with self.assertRaises(ValueError) as ctx:
