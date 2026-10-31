@@ -1,5 +1,8 @@
+import json
 import os
+import sys
 import time
+import urllib.request
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.common.by import By
@@ -20,8 +23,30 @@ ROUTER_PASSWORD = os.getenv("ROUTER_PASSWORD")
 if not ROUTER_USERNAME or not ROUTER_PASSWORD:
     raise ValueError("Missing required environment variables: ROUTER_USERNAME and ROUTER_PASSWORD")
 
+def notify(message):
+    """Post message to Discord webhook if DISCORD_WEBHOOK_URL is set. Never raises."""
+    url = os.getenv("DISCORD_WEBHOOK_URL")
+    if not url:
+        return
+    try:
+        body = json.dumps({"content": message[:2000]}).encode("utf-8")
+        req = urllib.request.Request(
+            url,
+            data=body,
+            headers={
+                "Content-Type": "application/json",
+                "User-Agent": "reboot-router/1.0",
+            },
+            method="POST",
+        )
+        urllib.request.urlopen(req, timeout=10)
+    except Exception as e:
+        # Never print the URL (contains the webhook token)
+        print(f"⚠️ Discord notify failed: {type(e).__name__}")
+
 def reboot_router():
     driver = None  # ✅ Ensure driver is always initialized
+    success = False
 
     try:
         options = webdriver.ChromeOptions()
@@ -80,14 +105,19 @@ def reboot_router():
         print("Clicked on confirmation button")
 
         print("✅ Router reboot initiated successfully.")
+        success = True
+        notify("✅ Router reboot triggered")
 
     except Exception as e:
         print(f"❌ Error: {e}")
+        notify(f"❌ Router reboot FAILED: {type(e).__name__}: {e}")
 
     finally:
         if driver:  # ✅ Ensure driver.quit() is only called if driver was initialized
             driver.quit()
             print("Closed the browser")
 
+    return success
+
 if __name__ == "__main__":
-    reboot_router()
+    sys.exit(0 if reboot_router() else 1)

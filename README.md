@@ -1,137 +1,78 @@
-# Home router {KAON_TELEKOM} restarter in k8s scheduled job
+# Router restarter (KAON / Telekom)
 
-Open the router admin page with selenium webdriver. Logins with the appropriate credentials. Navigate to reboot submenu and click the "Reboot" button.
+Selenium script that logs into a KAON/Telekom home router, reboots it daily and reports status to Discord.
 
 <img src="./assets/image.png" width="400">
 
-## Development
+## Features
 
-```bash
-readme.excalidraw
-readme.plantuml
-.gitignore
-.dockerignore
-pyenv install 3.9.18
-pyenv versions
-pyenv local 3.9.18 # .python-version
-# direnv, echo 'eval "$(direnv hook bash)"' >> ~/.zshrc
-echo 'layout pyenv 3.9.18' > .envrc
-direnv allow
-source .direnv/python-3.10/bin/activate
-# THIS doesnt need if .envrc/direnv is used
-# python -m venv .venv
-# source .venv/bin/activate
-pip install -r requirements.txt
-touch .env
-GH action https://github.com/python-semantic-release/python-semantic-release
-GH readme.md https://github.com/othneildrew/Best-README-Template
+- Headless Chrome: logs in, opens the reboot submenu, clicks "Reboot"
+- Discord notification on every run
+- Exit code 1 on failure
+- Runs on Coolify, plain Docker or Kubernetes
 
-```
+## Configuration
 
-### 0. Install ChromeDriver
-Selenium needs ChromeDriver to control the browser.
+| Variable | Default | Notes |
+|---|---|---|
+| `ROUTER_URL` | `https://192.168.0.1` | Router admin URL |
+| `ROUTER_USERNAME` | `admin` | |
+| `ROUTER_PASSWORD` | none | Required, secret (plain text, not base64) |
+| `DISCORD_WEBHOOK_URL` | none | Optional, secret |
 
-```bash
-sh tools/Linux64.sh
-```
+## Usage
 
-### 1. .env file for Local Development
-Create a .env file in the same directory as main.py:
-
-```bash
-ROUTER_URL=http://CHANGE_IP
-ROUTER_USERNAME=admin
-ROUTER_PASSWORD=****
-GITHUB_TOKEN=****
-```
-
-### 2. main.py
+Local (warning: this reboots the real router):
 
 ```bash
 pip install -r requirements.txt
+cp .env.example .env   # fill in values
+python main.py
 ```
 
-### 3. Dockerfile (No .env in Production)
+`tools/` holds optional ChromeDriver install helpers for local dev.
 
-📌 Note:
+Docker Compose (container idles; run the script via exec):
 
-Locally: It loads environment variables from .env.
+```bash
+docker compose up -d --build
+docker compose exec router-reboot python /app/main.py
+```
 
-In Kubernetes: It fetches secrets from Kubernetes Secrets via environment variables.
+Tests:
+
+```bash
+python -m unittest
+```
 
 ## Deployment
 
-### 4. Docker building
+### Coolify (primary)
 
-Authenticating to GitHub Package Registry
-```bash
-echo $GITHUB_TOKEN | docker login ghcr.io -u {your_user_name} --password-stdin
-```
+1. New resource, Docker Compose build pack, point at this repo.
+2. Add `ROUTER_URL`, `ROUTER_USERNAME`, `ROUTER_PASSWORD`, `DISCORD_WEBHOOK_URL` as environment variables (mark password and webhook as secret).
+3. Add a Scheduled Task: name `router-reboot`, command `python /app/main.py`, frequency `0 3 * * *`.
 
-Authenticating kubernetes to GitHub Package Registry
-```bash
-kubectl create secret docker-registry regcred -n tools --docker-server=ghcr.io --docker-username={your_user_name} --docker-password=$GITHUB_TOKEN
+Resource limits (set in `docker-compose.yaml`):
 
-kubectl get secret regcred --output=yaml
+| Key | Value |
+|---|---|
+| `mem_limit` | `1g` |
+| `cpus` | `1.0` |
+| `pids_limit` | `256` |
 
-kubectl get secret regcred --output="jsonpath={.data.\.dockerconfigjson}" | base64 --decode
-```
+### Kubernetes (legacy)
 
-Build and push the Docker image:
-```bash
-docker build -t ghcr.io/{your_user_name}/fluffy-fortnight/reboot-router .
-docker tag 3541d480fc19 ghcr.io/{your_user_name}/fluffy-fortnight/reboot-router:latest
-docker push ghcr.io/{your_user_name}/fluffy-fortnight/reboot-router:latest
-```
+See `router-reboot-cronjob.yaml` and `router-reboot-secret.yaml` (CronJob, daily 03:00, namespace `tools`).
+The image CMD is `sleep infinity`, so the CronJob container must set:
 
-Steps to link library to repo
-```bash
-Go to your profile on GitHub https://github.com/{your_user_name}?tab=packages. you must see the list of packages like here. List of packages
-
-Click on the package that you need to link to repo. You must get link to repo or go to this link https://github.com/users/{your_user_name}/packages/npm/{your_package_name}/settings
-
-Select the library repo.
-
-You can now view the packages on the repo too.
-https://github.com/{your_user_name}?tab=packages
-```
-
-Now the script runs headlessly using WebDriver Manager, ensuring the correct ChromeDriver version is used. 🚀
-
-### 5. Kubernetes CronJob (router-reboot-cronjob.yaml) and secret
-
-Apply the CronJob to Kubernetes:
-```bash
-kubectl apply -f router-reboot-cronjob.yaml
-
-kubectl apply -f router-reboot-secret.yaml
-```
-
-Now the script runs headlessly using WebDriver Manager, ensuring the correct ChromeDriver version is used. 🚀
-
-
-### 6. Run Locally
-
-Replace the base64 values with your actual credentials by encoding them:
-```bash
-echo -n "your-router-password" | base64
-export ROUTER_PASSWORD=your-base64-encoded-router-password
-export ROUTER_URL=https://CHANGE_IP
-export ROUTER_USERNAME=admin
-export GITHUB_TOKEN=****
-python main.py
-
-Or use
-
-source .env && python main.py
+```yaml
+command: ["python", "/app/main.py"]
 ```
 
 ## Contributing
 
-Pull requests are welcome. For major changes, please open an issue first
-to discuss what you would like to change.
-
-Please make sure to update tests as appropriate.
+Pull requests welcome; open an issue first for major changes.
 
 ## License
 

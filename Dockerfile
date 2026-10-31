@@ -1,4 +1,4 @@
-FROM python:3.9-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -16,4 +16,5 @@ RUN pip install --no-cache-dir -r requirements.txt
 # RUN chmod +x chromedriver.linux
 COPY main.py .
 
-CMD ["python", "main.py"]
+# Coolify Scheduled Task runs: python /app/main.py
+CMD ["sleep", "infinity"]
