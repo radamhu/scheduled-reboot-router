@@ -2,7 +2,17 @@
 
 Playwright script that logs into a KAON/Telekom home router, reboots it daily and reports status to Discord.
 
-<img src="./assets/image.png" width="400">
+```mermaid
+flowchart LR
+    subgraph coolify[Coolify host]
+        task["Scheduled Task<br/>0 5 * * * (UTC)"] --> app["router-reboot container<br/>python main.py<br/>Playwright + Chromium"]
+    end
+    subgraph home[Home network]
+        router["KAON/Telekom router<br/>web admin UI"]
+    end
+    app -->|"HTTPS: login, Reboot, confirm"| router
+    app -->|"status message"| discord["Discord webhook"]
+```
 
 ## Features
 
