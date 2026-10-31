@@ -1,19 +1,13 @@
-FROM python:3.12-slim
+# Image tag must match the playwright pin in requirements.txt (browsers are preinstalled for that version)
+FROM mcr.microsoft.com/playwright/python:v1.64.1-noble
 
 WORKDIR /app
 
-# Install Chrome and dependencies
-RUN apt-get update && apt-get install -y wget unzip \
-    && wget -q -O /tmp/google-chrome.deb https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
-    && apt-get install -y /tmp/google-chrome.deb \
-    && rm -rf /var/lib/apt/lists/* /tmp/google-chrome.deb
+ENV PYTHONUNBUFFERED=1
 
-# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# COPY chromedriver.linux .
-# RUN chmod +x chromedriver.linux
 COPY main.py .
 
 # Coolify Scheduled Task runs: python /app/main.py

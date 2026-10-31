@@ -1,12 +1,14 @@
 # Router restarter (KAON / Telekom)
 
-Selenium script that logs into a KAON/Telekom home router, reboots it daily and reports status to Discord.
+Playwright script that logs into a KAON/Telekom home router, reboots it daily and reports status to Discord.
 
 <img src="./assets/image.png" width="400">
 
 ## Features
 
-- Headless Chrome: logs in, opens the reboot submenu, clicks "Reboot"
+- Headless Chromium (Playwright): logs in, opens the reboot submenu, clicks "Reboot"
+- Step-by-step logs on stdout (visible in Coolify runtime logs), secrets redacted
+- On failure: dumps page URL, visible buttons and text to the log
 - Discord notification on every run
 - Exit code 1 on failure
 - Runs on Coolify, plain Docker or Kubernetes
@@ -19,6 +21,8 @@ Selenium script that logs into a KAON/Telekom home router, reboots it daily and 
 | `ROUTER_USERNAME` | `admin` | |
 | `ROUTER_PASSWORD` | none | Required, secret (plain text, not base64) |
 | `DISCORD_WEBHOOK_URL` | none | Optional, secret |
+| `LOG_LEVEL` | `INFO` | `DEBUG` adds browser console output |
+| `DRY_RUN` | off | `1`: log in and dump the admin page, no reboot clicks |
 
 ## Usage
 
@@ -26,11 +30,10 @@ Local (warning: this reboots the real router):
 
 ```bash
 pip install -r requirements.txt
+playwright install chromium
 cp .env.example .env   # fill in values
 python main.py
 ```
-
-`tools/` holds optional ChromeDriver install helpers for local dev.
 
 Docker Compose (container idles; run the script via exec):
 
@@ -51,7 +54,7 @@ python -m unittest
 
 1. New resource, Docker Compose build pack, point at this repo.
 2. Add `ROUTER_URL`, `ROUTER_USERNAME`, `ROUTER_PASSWORD`, `DISCORD_WEBHOOK_URL` as environment variables (mark password and webhook as secret).
-3. Add a Scheduled Task: name `router-reboot`, command `python /app/main.py`, frequency `0 3 * * *`.
+3. Add a Scheduled Task: name `router-reboot`, command `python /app/main.py`, frequency `0 5 * * *`.
 
 Resource limits (set in `docker-compose.yaml`):
 
