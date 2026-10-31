@@ -54,7 +54,7 @@ python -m unittest
 
 1. New resource, Docker Compose build pack, point at this repo.
 2. Add `ROUTER_URL`, `ROUTER_USERNAME`, `ROUTER_PASSWORD`, `DISCORD_WEBHOOK_URL` as environment variables (mark password and webhook as secret).
-3. Add a Scheduled Task: name `router-reboot`, command `python /app/main.py`, frequency `0 5 * * *`.
+3. Add a Scheduled Task: name `router-reboot`, command `python /app/main.py`, frequency `0 5 * * *` (Coolify server time, UTC).
 
 Resource limits (set in `docker-compose.yaml`):
 
