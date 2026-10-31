@@ -136,7 +136,22 @@ def attach_listeners(page):
         logging.WARNING if m.type in ("error", "warning") else logging.DEBUG, "browser console %s: %s", m.type, m.text[:300]))
     page.on("pageerror", lambda e: log.warning("browser pageerror: %s", _short(e)))
     page.on("requestfailed", lambda r: log.warning("request failed: %s %s (%s)", r.method, r.url, r.failure))
-    page.on("response", lambda r: log.warning("http %s: %s %s", r.status, r.request.method, r.url) if r.status >= 400 else None)
+    page.on("response", lambda r: log_response(r))
+
+
+def log_response(response):
+    """Log API calls (xhr/fetch) with status; bodies only at DEBUG. Request bodies are never logged."""
+    try:
+        req = response.request
+        is_api = req.resource_type in ("xhr", "fetch")
+        if response.status >= 400:
+            log.warning("http %s: %s %s", response.status, req.method, response.url)
+        elif is_api:
+            log.info("api %s %s -> %s", req.method, response.url, response.status)
+        if is_api and log.isEnabledFor(logging.DEBUG):
+            log.debug("api body %s: %s", response.url, response.text()[:300])
+    except Exception as e:
+        log.debug("log_response failed: %s", _short(e))
 
 
 def dump_page(page, tag="failure"):
